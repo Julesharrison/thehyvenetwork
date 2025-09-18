@@ -118,7 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         id: data.user.id,
         role: metadata.role,
         email,
-        username: metadata.username || '',
+        profile_handle: metadata.username || '',
         social_links: {},
         created_at: new Date()
       };

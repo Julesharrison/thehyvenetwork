@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Music4, HandHeart, Megaphone } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useHeader } from '../contexts/HeaderContext';
+import ParentContainer from '../components/ParentContainer';
+import ContentWrapper from '../components/ContentWrapper';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { SegmentedControl } from '../components/ui/SegmentedControl';
+import { Link } from '../components/ui/link';
 
 export default function SignUp() {
   const { signup } = useAuth();
@@ -9,25 +16,44 @@ export default function SignUp() {
 
   const [formData, setFormData] = useState({
     role: 'artist' as 'artist' | 'supporter' | 'promoter',
-    username: '',
+    profileHandle: '',
     stageName: '',
     email: '',
     password: ''
   });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [stageNameError, setStageNameError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const { showHeader, hideHeader } = useHeader();
+
+  // Role options for SegmentedControl
+  const roleOptions = [
+    { value: 'artist', label: 'Artist', icon: <Music4 className="w-4 h-4" /> },
+    { value: 'supporter', label: 'Supporter', icon: <HandHeart className="w-4 h-4" />  },
+    { value: 'promoter', label: 'Promoter', icon: <Megaphone className="w-4 h-4" />  }
+  ];
 
   // Auto-populate stage name for artists
   useEffect(() => {
-    if (formData.role === 'artist' && formData.username && !formData.stageName) {
-      setFormData(prev => ({ ...prev, stageName: prev.username }));
+    if (formData.role === 'artist' && formData.profileHandle && !formData.stageName) {
+      setFormData(prev => ({ ...prev, stageName: prev.profileHandle }));
     }
-  }, [formData.username, formData.role]);
+  }, [formData.profileHandle, formData.role]);
+
+    useEffect(() => {
+    // Show header when component mounts
+    showHeader();
+
+    // Hide header when component unmounts
+    return () => {
+      hideHeader();
+    };
+  }, [showHeader, hideHeader]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -35,11 +61,11 @@ export default function SignUp() {
     setFormData(prev => ({ ...prev, [name]: value }));
     setGeneralError('');
 
-    // Live username validation
-    if (name === 'username') {
+    // Live profileHandle validation
+    if (name === 'profileHandle') {
       setUsernameError('');
       if (value && !/^[a-zA-Z0-9_]*$/.test(value)) {
-        setUsernameError('Username can only contain letters, numbers, and underscores');
+        setUsernameError('profileHandle can only contain letters, numbers, and underscores');
       }
     }
 
@@ -54,6 +80,11 @@ export default function SignUp() {
     }
   };
 
+  const handleRoleChange = (role: string) => {
+    setFormData(prev => ({ ...prev, role: role as 'artist' | 'supporter' | 'promoter' }));
+    setGeneralError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUsernameError('');
@@ -63,14 +94,14 @@ export default function SignUp() {
 
     let hasErrors = false;
 
-    // Username validation
-    if (formData.username.length < 3 || formData.username.length > 20) {
-      setUsernameError('Username must be between 3 and 20 characters');
+    // profileHandle validation
+    if (formData.profileHandle.length < 3 || formData.profileHandle.length > 20) {
+      setUsernameError('profileHandle must be between 3 and 20 characters');
       hasErrors = true;
     }
 
-    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-      setUsernameError('Username can only contain letters, numbers, and underscores');
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.profileHandle)) {
+      setUsernameError('profileHandle can only contain letters, numbers, and underscores');
       hasErrors = true;
     }
 
@@ -109,7 +140,7 @@ export default function SignUp() {
     }
 
     const result = await signup(formData.email, formData.password, {
-      username: formData.username,
+      profileHandle: formData.profileHandle,
       role: formData.role,
       stageName: formData.role === 'artist' ? formData.stageName : undefined
     });
@@ -137,46 +168,33 @@ export default function SignUp() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl shadow-2xl p-8 w-full max-w-sm border border-border">
+    <ParentContainer>
+      <ContentWrapper>
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <span className="text-primary-foreground font-bold text-lg">Hyve</span>
-          </div>
-          <h1 className="text-3xl font-light text-foreground mb-2">Join Hyve</h1>
-          <p className="text-muted-foreground">Create your account</p>
+          <h1 className="text-headline-lg text-foreground">Create an account</h1>
         </div>
-
         <form onSubmit={handleSubmit} className="space-y-6">
           {generalError && (
             <div className="bg-destructive/20 border border-destructive/50 text-destructive px-4 py-3 rounded-lg text-sm">
               {generalError}
             </div>
           )}
-
           <div>
-            <label className="block text-sm font-medium text-foreground mb-3">Role</label>
-            <select
-              name="role"
+            <SegmentedControl
+              options={roleOptions}
               value={formData.role}
-              onChange={handleChange}
-              className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all"
-            >
-              <option value="artist">Artist</option>
-              <option value="supporter">Supporter</option>
-              <option value="promoter">Promoter</option>
-            </select>
+              onValueChange={handleRoleChange}
+            />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-3">Username</label>
-            <input
+            <Input
               type="text"
-              name="username"
-              value={formData.username}
+              name="profileHandle"
+              label="profileHandle"
+              value={formData.profileHandle}
               onChange={handleChange}
-              className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all"
-              placeholder="Choose a username"
+              placeholder="Choose a profileHandle"
               required
             />
             {usernameError && <p className="text-destructive text-sm mt-2">{usernameError}</p>}
@@ -184,13 +202,12 @@ export default function SignUp() {
 
           {formData.role === 'artist' && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-3">Stage Name (Optional)</label>
-              <input
+              <Input
                 type="text"
                 name="stageName"
+                label="Stage Name (Optional)"
                 value={formData.stageName}
                 onChange={handleChange}
-                className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all"
                 placeholder="Your stage name"
               />
               {stageNameError && <p className="text-destructive text-sm mt-2">{stageNameError}</p>}
@@ -198,77 +215,80 @@ export default function SignUp() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-3">Email</label>
-            <input
+            <Input
               type="email"
               name="email"
+              label="Email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all"
               placeholder="Enter your email"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-3">Password</label>
             <div className="relative">
-              <input
+              <Input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
+                label="Password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all pr-12"
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
                 placeholder="Create a password"
+                className="pr-12"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md p-1 transition-all"
+                className={`absolute right-6 bottom-3 rounded-md transition-all flex items-center justify-center ${
+                  passwordFocused ? 'text-primary' : 'text-light-grey'
+                }`}
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
               </button>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-foreground mb-3">Confirm Password</label>
-            <input
+            <Input
               type="password"
+              label="Confirm Password"
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value);
                 setConfirmPasswordError('');
               }}
-              className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all"
               placeholder="Confirm your password"
               required
             />
             {confirmPasswordError && <p className="text-destructive text-sm mt-2">{confirmPasswordError}</p>}
           </div>
 
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-medium hover:bg-primary/90 hover:shadow-xl transition-all shadow-lg disabled:opacity-50"
+            className="w-full"
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
-          </button>
+          </Button>
         </form>
 
         <div className="mt-8 text-center">
-          <p className="text-muted-foreground">
+          <p className="text-light-grey">
             Already have an account?{' '}
             <Link
-              to="/"
-              className="text-primary font-medium hover:text-primary/80 hover:underline transition-all"
+              to="/login"
+              variant="primary"
+              underline
             >
               Sign in
             </Link>
           </p>
         </div>
-      </div>
-    </div>
+      </ContentWrapper>
+    </ParentContainer>
   );
 }

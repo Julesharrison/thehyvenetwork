@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import { HeaderProvider } from "./contexts/HeaderContext";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -12,8 +13,10 @@ import QRCodeDetail from "./pages/QRCodeDetail";
 import TestPage from "./pages/TestPage";
 import ArtistQRCodePage from "./pages/ArtistQRCodePage";
 import TimePickerDemo from "./pages/TimePickerDemo";
-import PublicArtistPage from "./pages/PublicArtistPage"; 
+import PublicArtistPage from "./pages/PublicArtistPage";
 import PublicEventPage from "./pages/PublicEventPage";
+import ColourSwatches from "./pages/ColourSwatches";
+import LandingPage from "./pages/LandingPage";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import DashboardRouter from "./components/DashboardRouter";
@@ -21,7 +24,8 @@ import DashboardRouter from "./components/DashboardRouter";
 function App() {
   return (
     <AuthProvider>
-      <Layout>
+      <HeaderProvider>
+        <Layout>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<Login />} />
@@ -104,17 +108,19 @@ function App() {
           {/* Development/test routes */}
           <Route path="/test" element={<TestPage />} />
           <Route path="/time-picker" element={<TimePickerDemo />} />
+          <Route path="/colours" element={<ColourSwatches />} />
           
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          {/* Landing page */}
+          <Route path="/" element={<LandingPage />} />
           
           {/* Public artist routes - moved to /profile/ to avoid conflicts */}
           <Route path="/profile/:stageName" element={<PublicArtistPage />} />
           
           {/* Catch all - redirect to dashboard */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Layout>
+          </Routes>
+        </Layout>
+      </HeaderProvider>
     </AuthProvider>
   );
 }

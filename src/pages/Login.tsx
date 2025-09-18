@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { useHeader } from '../contexts/HeaderContext';
+import ParentContainer from '../components/ParentContainer';
+import ContentWrapper from '../components/ContentWrapper';
+import { Link } from '../components/ui/link';
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -9,6 +15,17 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const { showHeader, hideHeader } = useHeader();
+
+  useEffect(() => {
+    // Show header when component mounts
+    showHeader();
+
+    // Hide header when component unmounts
+    return () => {
+      hideHeader();
+    };
+  }, [showHeader, hideHeader]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,57 +81,48 @@ export default function Login() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl shadow-2xl p-8 w-full max-w-sm border border-border">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-primary rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-            <span className="text-primary-foreground font-bold text-lg">Hyve</span>
-          </div>
-          <h1 className="text-3xl font-light text-foreground mb-2">Welcome Back</h1>
-          <p className="text-muted-foreground">Sign in to continue</p>
+    <ParentContainer>
+      <ContentWrapper>
+        <div className="text-center mb-8 border">
+          <h1 className="text-headline-lg text-foreground">Welcome Back</h1>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           {errorMsg && (
-            <div className="bg-destructive/20 border border-destructive/50 text-destructive px-4 py-3 rounded-lg text-sm">
+            <div className="bg-destructive/20 border border-destructive/50 text-destructive px-4 py-3 rounded-lg text-body-md">
               {errorMsg}
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-3">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all"
-              placeholder="Enter your email"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-3">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-4 bg-input border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-primary hover:border-primary transition-all"
-              placeholder="Enter your password"
-              required
-            />
-          </div>
-          <button
+          <Input
+            type="email"
+            label="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Enter your email"
+            required
+          />
+          <Input
+            type="password"
+            label="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            required
+          />
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary text-primary-foreground py-4 rounded-xl font-medium hover:bg-primary/90 hover:shadow-xl transition-all shadow-lg disabled:opacity-50"
+            className="w-full font-medium"
           >
             {loading ? 'Signing in...' : 'Sign In'}
-          </button>
+          </Button>
         </form>
         <div className="mt-8 text-center">
-          <p className="text-muted-foreground">
+          <p className="text-light-grey">
             Don&apos;t have an account?{' '}
             <Link
               to="/signup"
-              className="text-primary font-medium hover:text-primary/80 hover:underline transition-all"
+              variant="primary"
+              underline
             >
               Create one
             </Link>
@@ -123,12 +131,13 @@ export default function Login() {
         <div className="mt-4 text-center">
           <Link
             to="/forgot-password"
-            className="text-sm text-muted-foreground hover:text-foreground hover:underline transition-all"
+            variant="primary"
+            underline
           >
             Forgot your password?
           </Link>
         </div>
-      </div>
-    </div>
+      </ContentWrapper>
+    </ParentContainer>
   );
 }
