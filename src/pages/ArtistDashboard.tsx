@@ -5,16 +5,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import Modal from '../components/ui/Modal';
 import OverlayMenu from "../components/ui/OverlayMenu";
+import HexGrid from '../components/HexGrid';
 import { SocialLinks, getSocialLink, updateSocialLink } from '../types';
 
-// Import your brand SVGs
-import InstagramLogo from '../assets/brands/instagram.svg';
-import TikTokLogo from '../assets/brands/tiktok.svg';
-import SnapchatLogo from '../assets/brands/snapchat.svg';
-import YoutubeLogo from '../assets/brands/youtube.svg';
-import SpotifyLogo from '../assets/brands/spotify.svg';
-import CustomUrlLogo from '../assets/brands/customurl.svg';
-import UploadImageLogo from '../assets/brands/uploadimage.svg';
 
 export default function ArtistDashboard() {
   const navigate = useNavigate();
@@ -33,13 +26,10 @@ export default function ArtistDashboard() {
   const [stageNameError, setStageNameError] = useState('');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [deleteType, setDeleteType] = useState<'link' | 'image' | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  // Hex grid layout constants
-  const hexRadius = 35;
-  const rowPadding = 40;
-  const sideColumnOffsetY = 16;
-  const centerX = 200;
-  const columnSpacing = 80;
 
   // UPDATED: Simplified data fetching with single query
   useEffect(() => {
@@ -100,6 +90,99 @@ export default function ArtistDashboard() {
       .eq('id', user.id);
 
     if (error) console.error('Error saving social link:', error);
+  };
+
+  const handleDeleteSocialLink = async (platform: string) => {
+    if (!user) return;
+
+    const updatedLinks = updateSocialLink(socialLinks, platform as keyof SocialLinks, '');
+    
+    setSocialLinks(updatedLinks);
+    setEditingPlatform(null);
+    setTempUrl('');
+
+    // Update database
+    const { error } = await supabase
+      .from('users')
+      .update({ 
+        social_links: updatedLinks,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id);
+    
+    if (error) console.error('Error deleting social link:', error);
+  };
+
+  const handleDeleteProfileImage = async () => {
+    if (!user) return;
+
+    try {
+      // Delete from Supabase Storage if image exists
+      if (profileImageUrl) {
+        const fileName = `${user.id}.jpg`; // Assuming jpg, but could be dynamic
+        
+        const { error: deleteError } = await supabase.storage
+          .from('artist-profile-images')
+          .remove([fileName]);
+
+        if (deleteError) {
+          console.error('Error deleting image from storage:', deleteError);
+        }
+      }
+
+      // Update database to remove profile_image_url
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ 
+          profile_image_url: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating user profile:', updateError);
+        return;
+      }
+
+      // Update local state
+      setProfileImageUrl(null);
+      setEditingProfile(false);
+      setProfileImageFile(null);
+      setProfilePreviewUrl(null);
+
+    } catch (error) {
+      console.error('Error deleting profile image:', error);
+    }
+  };
+
+  const confirmDeleteLink = (platform: string) => {
+    setDeleteType('link');
+    setDeleteTarget(platform);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDeleteImage = () => {
+    setDeleteType('image');
+    setDeleteTarget(null);
+    setShowDeleteConfirmation(true);
+  };
+
+  const executeDelete = async () => {
+    if (deleteType === 'link' && deleteTarget) {
+      await handleDeleteSocialLink(deleteTarget);
+    } else if (deleteType === 'image') {
+      await handleDeleteProfileImage();
+    }
+    
+    setShowDeleteConfirmation(false);
+    setDeleteType(null);
+    setDeleteTarget(null);
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirmation(false);
+    setDeleteType(null);
+    setDeleteTarget(null);
   };
 
   // Profile image upload handler (unchanged)
@@ -216,44 +299,40 @@ export default function ArtistDashboard() {
     navigate('/');
   };
 
-  // Helper to get brand logo (unchanged)
-  const getBrandLogo = (platform: string) => {
-    switch (platform) {
-      case 'instagram': return InstagramLogo;
-      case 'tiktok': return TikTokLogo;
-      case 'snapchat': return SnapchatLogo;
-      case 'youtube': return YoutubeLogo;
-      case 'spotify': return SpotifyLogo;
-      case 'custom': return CustomUrlLogo;
-      case 'profile': return UploadImageLogo;
-      default: return null;
+  const handleShare = async () => {
+    // Generate the artist's profile URL (you may need to adjust this based on your routing)
+    const profileUrl = `${window.location.origin}/artist/${user?.user_metadata?.stageName || user?.id}`;
+    
+    try {
+      // Check if Web Share API is available (mobile devices)
+      if (navigator.share) {
+        await navigator.share({
+          title: `${user?.user_metadata?.stageName || 'Artist'} - THE HYVE`,
+          text: `Check out ${user?.user_metadata?.stageName || 'this artist'} on THE HYVE!`,
+          url: profileUrl
+        });
+      } else {
+        // Fallback to clipboard for desktop
+        await navigator.clipboard.writeText(profileUrl);
+        // You might want to show a toast notification here
+        console.log('Profile URL copied to clipboard:', profileUrl);
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      // Fallback: try to copy to clipboard even if share failed
+      try {
+        await navigator.clipboard.writeText(profileUrl);
+        console.log('Profile URL copied to clipboard as fallback:', profileUrl);
+      } catch (clipboardError) {
+        console.error('Clipboard fallback failed:', clipboardError);
+      }
     }
   };
 
-  const renderPlatformIcon = (platform: string) => {
-    const brandLogo = getBrandLogo(platform);
-    if (brandLogo) {
-      return (
-        <image
-          href={brandLogo}
-          x="14"
-          y="10"
-          width="60"
-          height="60"
-        />
-      );
-    }
-    return null;
-  };
 
   if (loading) return <p className="text-white">Loading...</p>;
   if (!user) return <p className="text-white">Please log in</p>;
 
-  const columns = [
-    { x: centerX - columnSpacing, labels: ['LEFT TOP', 'LEFT BOTTOM'] },
-    { x: centerX, labels: ['TOP', 'CENTER', 'BOTTOM'] },
-    { x: centerX + columnSpacing, labels: ['RIGHT TOP', 'RIGHT BOTTOM'] },
-  ];
 
   return (
     <main className="flex flex-col items-center gap-6 bg-black min-h-screen p-6 text-white">
@@ -269,76 +348,60 @@ export default function ArtistDashboard() {
 
       <h1 className="text-3xl font-bold text-center mb-6 tracking-wide">{user?.user_metadata?.stageName || 'Your Hyve'}</h1>
 
-      {/* Hex Grid - UPDATED to use social links */}
-      <div className="relative w-[400px] h-[400px]">
-        {columns.map((col, colIndex) => {
-          const hexHeight = hexRadius * 2;
-          const colCount = col.labels.length;
-          const colTotalHeight = (hexHeight * 0.75) * (colCount - 1) + hexHeight;
-          const centerColumnCount = columns[1].labels.length;
-          const centerColumnTotalHeight = (hexHeight * 0.75) * (centerColumnCount - 1) + hexHeight;
-          let startY = (centerColumnTotalHeight - colTotalHeight) / 2 + 50;
-          if (colIndex !== 1) startY += sideColumnOffsetY;
-
-          return col.labels.map((_, i) => {
-            let platform = '';
-            if (colIndex === 0) platform = i === 0 ? 'instagram' : 'youtube';
-            if (colIndex === 1) platform = i === 0 ? 'tiktok' : i === 1 ? 'profile' : 'spotify';
-            if (colIndex === 2) platform = i === 0 ? 'snapchat' : 'custom';
-
-            // UPDATED: Get social link from JSON instead of blocks
-            const socialLink = getSocialLink(socialLinks, platform as keyof SocialLinks);
-            const isEditing = editingPlatform === platform;
-            const hasUrl = socialLink && socialLink.trim() !== '';
-            const cy = startY + i * (hexHeight * 0.75 + rowPadding);
-
-            return (
-              <div
-                key={`${platform}-${i}`}
-                className={`absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform transition-opacity duration-300 ${
-                  isEditing ? 'scale-110 z-10' : 'hover:scale-105'
-                }`}
-                style={{
-                  left: col.x,
-                  top: cy,
-                  width: '88px',
-                  height: '80px',
-                  opacity: hasUrl || platform === 'profile' ? 1 : 0.4,
-                }}
-                onClick={() => platform === 'profile' ? setEditingProfile(true) : handleSocialLinkClick(platform)}
-              >
-                <svg viewBox="0 0 88 80" className="w-full h-full shadow-lg">
-                  <defs>
-                    <clipPath id={`hex-clip-${platform}-${i}`}>
-                      <path d="M2.29395 43.1328C1.22115 41.1823 1.22115 38.8177 2.29395 36.8672L20.4434 3.86719C21.5857 1.79031 23.7683 0.500082 26.1387 0.5H61.8613C64.2317 0.500082 66.4143 1.79031 67.5566 3.86719L85.7061 36.8672C86.7788 38.8177 86.7789 41.1823 85.7061 43.1328L67.5566 76.1328C66.4143 78.2097 64.2317 79.4999 61.8613 79.5H26.1387C23.7683 79.4999 21.5857 78.2097 20.4434 76.1328L2.29395 43.1328Z" />
-                    </clipPath>
-                  </defs>
-
-                  {platform === 'profile' && profileImageUrl ? (
-                    <image
-                      href={profileImageUrl}
-                      width="88"
-                      height="80"
-                      preserveAspectRatio="xMidYMid slice"
-                      clipPath={`url(#hex-clip-${platform}-${i})`}
-                      className="rounded-lg"
-                    />
-                  ) : (
-                    renderPlatformIcon(platform)
-                  )}
-
-                  <path
-                    d="M2.29395 43.1328C1.22115 41.1823 1.22115 38.8177 2.29395 36.8672L20.4434 3.86719C21.5857 1.79031 23.7683 0.500082 26.1387 0.5H61.8613C64.2317 0.500082 66.4143 1.79031 67.5566 3.86719L85.7061 36.8672C86.7788 38.8177 86.7789 41.1823 85.7061 43.1328L67.5566 76.1328C66.4143 78.2097 64.2317 79.4999 61.8613 79.5H26.1387C23.7683 79.4999 21.5857 78.2097 20.4434 76.1328L2.29395 43.1328Z"
-                    fill="transparent"
-                    stroke={hasUrl || platform === 'profile' ? 'hsl(var(--primary))' : 'gray'}
-                    strokeWidth={isEditing ? 3 : 2.5}
-                  />
-                </svg>
-              </div>
-            );
-          });
-        })}
-      </div>
+      {/* New Hex Grid using SVG components */}
+      <HexGrid
+        platforms={[
+          {
+            id: 'instagram',
+            platform: 'instagram',
+            hasUrl: !!(getSocialLink(socialLinks, 'instagram')?.trim()),
+            onClick: () => handleSocialLinkClick('instagram')
+          },
+          {
+            id: 'tiktok',
+            platform: 'tiktok',
+            hasUrl: !!(getSocialLink(socialLinks, 'tiktok')?.trim()),
+            onClick: () => handleSocialLinkClick('tiktok')
+          },
+          {
+            id: 'snapchat',
+            platform: 'snapchat',
+            hasUrl: !!(getSocialLink(socialLinks, 'snapchat')?.trim()),
+            onClick: () => handleSocialLinkClick('snapchat')
+          },
+          {
+            id: 'youtube',
+            platform: 'youtube',
+            hasUrl: !!(getSocialLink(socialLinks, 'youtube')?.trim()),
+            onClick: () => handleSocialLinkClick('youtube')
+          },
+          {
+            id: 'spotify',
+            platform: 'spotify',
+            hasUrl: !!(getSocialLink(socialLinks, 'spotify')?.trim()),
+            onClick: () => handleSocialLinkClick('spotify')
+          },
+          {
+            id: 'custom',
+            platform: 'custom',
+            hasUrl: !!(getSocialLink(socialLinks, 'custom')?.trim()),
+            onClick: () => handleSocialLinkClick('custom')
+          },
+          {
+            id: 'profile',
+            platform: 'profile',
+            hasUrl: !!profileImageUrl,
+            onClick: () => setEditingProfile(true)
+          },
+          {
+            id: 'share',
+            platform: 'share',
+            hasUrl: true, // Share cell is always active
+            onClick: handleShare
+          }
+        ]}
+        profileImageUrl={profileImageUrl}
+      />
 
       {/* UPDATED: Edit URL Modal for social links */}
       <Modal isOpen={!!editingPlatform} onClose={handleCancelEdit}>
@@ -353,19 +416,29 @@ export default function ArtistDashboard() {
           className="w-full px-4 py-3 mb-4 bg-black border border-border rounded-lg text-white placeholder-muted-foreground focus:ring-2 focus:ring-primary"
           autoFocus
         />
-        <div className="flex space-x-3">
-          <button
-            onClick={() => handleSaveSocialLink(editingPlatform!)}
-            className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition-all"
-          >
-            Save
-          </button>
-          <button
-            onClick={handleCancelEdit}
-            className="flex-1 border border-border text-muted-foreground py-3 rounded-lg hover:bg-muted transition-all"
-          >
-            Cancel
-          </button>
+        <div className="space-y-3">
+          <div className="flex space-x-3">
+            <button
+              onClick={() => handleSaveSocialLink(editingPlatform!)}
+              className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition-all"
+            >
+              Save
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              className="flex-1 border border-border text-muted-foreground py-3 rounded-lg hover:bg-muted transition-all"
+            >
+              Cancel
+            </button>
+          </div>
+          {editingPlatform && getSocialLink(socialLinks, editingPlatform as keyof SocialLinks) && (
+            <button
+              onClick={() => confirmDeleteLink(editingPlatform)}
+              className="w-full bg-destructive text-destructive-foreground py-3 rounded-lg font-semibold hover:bg-destructive/90 transition-all"
+            >
+              Delete {editingPlatform.charAt(0).toUpperCase() + editingPlatform.slice(1)} Link
+            </button>
+          )}
         </div>
       </Modal>
 
@@ -443,25 +516,36 @@ export default function ArtistDashboard() {
           </label>
         </div>
 
-        <div className="flex space-x-3">
-          <button 
-            onClick={handleUploadProfileImage}
-            disabled={!profileImageFile || isUploading}
-            className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isUploading ? 'Uploading...' : profileImageFile ? 'Upload Image' : 'Select Image First'}
-          </button>
-          <button 
-            onClick={() => {
-              setEditingProfile(false);
-              setProfileImageFile(null);
-              setProfilePreviewUrl(null);
-            }}
-            disabled={isUploading}
-            className="flex-1 border border-border text-muted-foreground py-3 rounded-lg hover:bg-muted transition-all disabled:opacity-50"
-          >
-            Cancel
-          </button>
+        <div className="space-y-3">
+          <div className="flex space-x-3">
+            <button 
+              onClick={handleUploadProfileImage}
+              disabled={!profileImageFile || isUploading}
+              className="flex-1 bg-primary text-primary-foreground py-3 rounded-lg font-semibold hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUploading ? 'Uploading...' : profileImageFile ? 'Upload Image' : 'Select Image First'}
+            </button>
+            <button 
+              onClick={() => {
+                setEditingProfile(false);
+                setProfileImageFile(null);
+                setProfilePreviewUrl(null);
+              }}
+              disabled={isUploading}
+              className="flex-1 border border-border text-muted-foreground py-3 rounded-lg hover:bg-muted transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+          {profileImageUrl && (
+            <button
+              onClick={confirmDeleteImage}
+              disabled={isUploading}
+              className="w-full bg-destructive text-destructive-foreground py-3 rounded-lg font-semibold hover:bg-destructive/90 transition-all disabled:opacity-50"
+            >
+              Delete Current Image
+            </button>
+          )}
         </div>
       </Modal>
 
@@ -521,6 +605,33 @@ export default function ArtistDashboard() {
             className="flex-1 border border-border text-muted-foreground py-3 rounded-lg hover:bg-muted transition-all"
           >
             No
+          </button>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={showDeleteConfirmation} onClose={cancelDelete}>
+        <h3 className="text-lg font-medium text-foreground text-center mb-4">
+          {deleteType === 'image' 
+            ? 'Are you sure you want to delete your profile image?' 
+            : `Are you sure you want to delete your ${deleteTarget} link?`
+          }
+        </h3>
+        <p className="text-sm text-muted-foreground text-center mb-6">
+          This action cannot be undone.
+        </p>
+        <div className="flex space-x-3">
+          <button
+            onClick={executeDelete}
+            className="flex-1 bg-destructive text-destructive-foreground py-3 rounded-lg font-semibold hover:bg-destructive/90 transition-all"
+          >
+            Delete
+          </button>
+          <button
+            onClick={cancelDelete}
+            className="flex-1 border border-border text-muted-foreground py-3 rounded-lg hover:bg-muted transition-all"
+          >
+            Cancel
           </button>
         </div>
       </Modal>
