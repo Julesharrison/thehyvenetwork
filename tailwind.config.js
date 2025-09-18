@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -29,6 +28,18 @@ module.exports = {
         destructive: "hsl(var(--destructive))",
         "destructive-foreground": "hsl(var(--destructive-foreground))",
 
+        success: "hsl(var(--success))",
+        "success-foreground": "hsl(var(--success-foreground))",
+
+        // Figma color library
+        "light-grey": "hsl(var(--light-grey))",
+        "grey": "hsl(var(--grey))",
+        "dark-grey": "hsl(var(--dark-grey))",
+        "charcoal": "hsl(var(--charcoal))",
+        "black-figma": "hsl(var(--black-figma))",
+        "white-figma": "hsl(var(--white-figma))",
+        "error": "hsl(var(--error))",
+
         popover: "hsl(var(--popover))",
         "popover-foreground": "hsl(var(--popover-foreground))",
 
@@ -44,25 +55,50 @@ module.exports = {
         "3xl": "calc(var(--radius) + 12px)",
       },
       fontFamily: {
-        sans: [
-          "Inter",
-          "-apple-system",
-          "BlinkMacSystemFont",
-          "Segoe UI",
-          "Roboto",
-          "Oxygen",
-          "Ubuntu",
-          "Cantarell",
-          "Fira Sans",
-          "Droid Sans",
-          "Helvetica Neue",
-          "sans-serif",
-        ],
+        'helvetica': ['Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif'],
+        'roboto': ['Roboto', 'sans-serif'],
         body: "var(--body-font-family)",
         title: "var(--title-font-family)",
         "typography-button": "var(--typography-button-font-family)",
       },
+      fontSize: {
+        'hero-lg': ['57px', { letterSpacing: '-1.25px', fontWeight: 'bold' }],
+        'hero-md': ['45px', { letterSpacing: '0', fontWeight: 'bold' }],
+        'headline-lg': ['28px', { letterSpacing: '0', fontWeight: 'bold' }],
+        'headline-md': ['24px', { letterSpacing: '0', fontWeight: '500' }],
+        'headline-sm': ['24px', { letterSpacing: '0', fontWeight: '400' }],
+        'title-lg': ['22px', { letterSpacing: '0', fontWeight: '400' }],
+        'title-md': ['16px', { letterSpacing: '0.15%', fontWeight: '500' }],
+        'title-md-bold': ['16px', { letterSpacing: '0.15%', fontWeight: 'bold' }],
+        'label-lg': ['14px', { letterSpacing: '0.1%', fontWeight: '500' }],
+        'label-md': ['12px', { letterSpacing: '2.5%', fontWeight: '400' }],
+        'body-lg': ['16px', { letterSpacing: '0.5%', fontWeight: '400' }],
+        'body-md': ['14px', { letterSpacing: '0', fontWeight: '400' }],
+        'cta-md': ['16px', { letterSpacing: '0', fontWeight: 'bold' }],
+      },
+      boxShadow: {
+        'glow-white': '0 0 20px 0 rgba(255, 255, 255, 0.50)',
+        'glow-yellow' : '0 0 20px 0 rgba(255, 235, 86, 0.50);'
+      },
+      transitionProperty: {
+        'all-300': 'all'
+      },
+      transitionDuration: {
+        '300': '300ms'
+      },
+      transitionTimingFunction: {
+        'ease': 'ease'
+      },
+      borderColor: {
+        'debug1': '#F24137',
+        'debug2': '#5076FF',
+        'debug3': '#7FFF50'
+      },
+      borderWidth: {
+        'debug': '1px'
+      }
     },
   },
   plugins: [],
 }
+
